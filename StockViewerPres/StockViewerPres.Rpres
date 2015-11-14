@@ -1,0 +1,79 @@
+Stock Information Through R
+========================================================
+author: Ben Daniel
+date: 11/14/2015
+transition: rotate
+
+Financial Information on the Internet
+========================================================
+
+- For more than two decades, financial inforamtion on stock prices have been available throuth the Internet.
+- Several aggregators such as Yahoo and Google have finance websites that can graph and download this information
+
+Issues Viewing this Information
+
+- Downloading data can be cumbersome
+- Getting it in the right format is unreliable
+- Loading it into an analytics application has not always lent flexibility
+
+Financial Info on Internet + Analytics
+========================================================
+There is a solution
+- R Packages such as [quantmod](http://www.quantmod.com/) make it easy to obtain this information directly into reusable code.
+- Analytic packages such as [TTR](http://www.inside-r.org/packages/cran/TTR/docs/MovingAverages) can use this information to present useful or insightful analytics
+- ShinyApps provide a means for users to interact with the data, do what-if scenarios, and create meaningful analysis.
+
+Examining the Stock Price of The Home Depot
+========================================================
+Lets look at the stock price for The Home Depot, a home improvement retailer based in the United States in Atlanta, Georgia. 
+
+- The code below shows the quantmod package to import the data from Yahoo for HD.
+- Once the data is downloaded, it can be transformed into other structures, such as dataframes, for analysis. 
+```{r eval=FALSE}
+dataInput<-getSymbols("HD",src="yahoo",auto.assign = FALSE)
+#transform to data frame
+stockData<- as.data.frame(dataInput)  
+```
+
+Examples of Analysis of Data
+========================================================
+In the figure on the left, I used the **hist** function to create a histogram. On the right, TTR package creates a 10 period moving average forecast of the stock's closing price. 
+- See the [Stock Viewer on ShinyApps] (https://bdanielatl.shinyapps.io/ShinyStockViewer) to try other symbols and scenarios.
+```{r, echo=FALSE}
+require(quantmod)
+require(TTR)
+require(lubridate)
+require(dplyr)
+require(ggplot2)
+MALength<-10
+Ratio <-.5
+#get data and turn it into a dataframe
+dataInput<-getSymbols("HD",src="yahoo",auto.assign = FALSE)
+stockData<- as.data.frame(dataInput)  
+#transform the row names into a date column, then filter for the last 90 days
+stockData<-cbind(startdate = rownames(stockData),stockData)
+stockData$startdate<-ymd(stockData$startdate)
+l90StockData<-filter(stockData,startdate >= ymd(Sys.Date()-days(90)))
+ sdEMA <- EMA(l90StockData[,4],n=MALength,ratio =Ratio)
+                
+                #now bind it with the rest of the data
+                #add a startdate column
+                fcoutput<-data.frame(startdate=l90StockData[,1],act=l90StockData[,2],fc=sdEMA)
+                
+                plotTitle<-paste(MALength," period moving average for HD")
+                
+                
+```{r, fig.width=5, fig.height=5,echo=FALSE,out.extra='style="float:left"'}
+hist(l90StockData[,4],
+                                breaks=15,col='darkgray',border='white',
+                             main=paste("Histogram for 90 days closing stock price of HD"),xlab="Price Bins")
+```
+```{r fig.width=5, fig.height=5,echo=FALSE, out.extra='style="float:left"'}
+ ggplot(fcoutput,aes(startdate))+
+                        ggtitle(plotTitle)+
+                        ylab("Closing Price")+
+                        xlab("Start date") +
+                        geom_line(aes(y=act),color="black") +
+                        geom_line(aes(y=fc),color="orange")
+                
+```
