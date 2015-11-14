@@ -1,0 +1,8 @@
+name: ShinyStockViewer
+account: bdanielatl
+server: shinyapps.io
+bundleId: 310391
+url: https://bdanielatl.shinyapps.io/ShinyStockViewer
+when: 1447466403.53658
+asMultiple: FALSE
+asStatic: FALSE

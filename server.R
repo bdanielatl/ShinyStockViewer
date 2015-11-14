@@ -4,22 +4,24 @@
 # http://shiny.rstudio.com
 #
 
-library(shiny)
-library(quantmod)
-library(TTR)
-library(lubridate)
+require(shiny)
+require(quantmod)
+require(TTR)
+require(lubridate)
+require(dplyr)
+require(ggplot2)
 
 shinyServer(function(input, output) {
         v <- reactiveValues(data = NULL)
         
         #create a reactive function.
-        dataInput<-reactive({
-                #get the symbol from the input
-                sym <- input$symbol
-                #get the symbol stock data from yahoo!
-                getSymbols(sym,src="yahoo",auto.assign = FALSE)
-                
-        })
+#         dataInput<-reactive({
+#                 #get the symbol from the input
+#                 sym <- input$symbol
+#                 #get the symbol stock data from yahoo!
+#                 getSymbols(sym,src="yahoo",auto.assign = FALSE)
+#                 
+#         })
 
         #on submit, read the data and plot it        
         observeEvent(input$goButton, {
@@ -33,36 +35,32 @@ shinyServer(function(input, output) {
                 progress$set(message = paste("Data for " , input$symbol , "retrieved."), value = 0)
                 
                 progress$set(message = paste("Generating plot and forecast."), value = 0)
-                
-                stockData<- as.data.frame(dataInput())  
-                stockData<-cbind(startdate = rownames(stockData),stockData)
-                stockData$startdate<-ymd(stockData$startdate)
-                
-                l90StockData<-filter(stockData,startdate >= ymd(Sys.Date()-days(90)))
+                #get the symbol from the input
+                sym <- input$symbol
+                #get the symbol stock data from yahoo!
+                dataInput<-getSymbols(sym,src="yahoo",auto.assign = FALSE)
                 
                 
-                output$distPlot<- renderPlot({
-                        #hist(as.data.frame(last(dataInput(),90)[,3])[,1], 
-                        #     breaks = input$bins, col = 'darkgray', border = 'white') 
-                        hist(l90StockData[,4],
+                
+                 stockData<- as.data.frame(dataInput)  
+                 stockData<-cbind(startdate = rownames(stockData),stockData)
+                 stockData$startdate<-ymd(stockData$startdate)
+                 
+                 l90StockData<-filter(stockData,startdate >= ymd(Sys.Date()-days(90)))
+                 
+
+                 output$distPlot<- renderPlot({
+                         #hist(as.data.frame(last(dataInput(),90)[,3])[,1], 
+                         #     breaks = input$bins, col = 'darkgray', border = 'white') 
+                         hist(l90StockData[,4],
                                 breaks=input$bins,col='darkgray',border='white',
                              main=paste("Histogram for 90 days closing stock price of ",input$symbol))
                 })
                 
                 #do an n period  moving average forecast from the last 90 days 
-        
+                
                 sdEMA <- EMA(l90StockData[,4],n=input$MALength,ratio =input$Ratio)
                 
-                addForecastRows<- function (df,i,m){
-                        #df is a data frame with the original fcoutput, create a new forecast value
-                        fc<-EMA(tail(df,m)[,3],n=m,ratio=.50)
-                        fc<-last(fc)
-                        #n is a parameter stating the number of buckets, create a new start date
-                        act<-NA
-                        startdate <- tail(df,1)[,1] + days(1)
-                        newDF<-data.frame(startdate,act,fc)
-                }
-                    
                 #now bind it with the rest of the data
                 #add a startdate column
                 fcoutput<-data.frame(startdate=l90StockData[,1],act=l90StockData[,2],fc=sdEMA)
@@ -75,9 +73,11 @@ shinyServer(function(input, output) {
                         xlab("Start date") +
                         geom_line(aes(y=act),color="black") +
                         geom_line(aes(y=fc),color="orange")
-        
+                
                 
                 output$fcstPlot <-renderPlot(fcplot)
+                
+                
                 
         })  
         
